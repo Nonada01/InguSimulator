@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇰🇷 한반도 인구 디지털 트윈 시뮬레이터</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Lucide Icons 대체 (간단한 SVG 아이콘)
+        const Icon = ({ type, className = "w-5 h-5" }) => {
+            const icons = {
+                play: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                pause: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                reset: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+                users: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+                wind: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>,
+                chart: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
+                building: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+                heart: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>,
+                graduation: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /></svg>,
+                briefcase: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+                home: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+                trending: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
+            };
+            return icons[type] || null;
+        };
+
+        function KoreaPopulationTwin() {
+            const canvasRef = useRef(null);
+            const [isRunning, setIsRunning] = useState(false);
+            const [time, setTime] = useState(0);
+            const [speed, setSpeed] = useState(1);
+            const [currentPage, setCurrentPage] = useState('population');
+            
+            const [cities, setCities] = useState({
+                seoul: { name: '서울', population: 9500000, x: 0.5, y: 0.35, growth: 0 },
+                busan: { name: '부산', population: 3300000, x: 0.72, y: 0.75, growth: 0 },
+                incheon: { name: '인천', population: 2950000, x: 0.42, y: 0.38, growth: 0 },
+                daegu: { name: '대구', population: 2400000, x: 0.68, y: 0.62, growth: 0 },
+                daejeon: { name: '대전', population: 1450000, x: 0.5, y: 0.55, growth: 0 },
+                gwangju: { name: '광주', population: 1440000, x: 0.38, y: 0.72, growth: 0 },
+                ulsan: { name: '울산', population: 1120000, x: 0.78, y: 0.68, growth: 0 },
+                suwon: { name: '수원', population: 1180000, x: 0.48, y: 0.40, growth: 0 },
+                sejong: { name: '세종', population: 370000, x: 0.48, y: 0.52, growth: 0 },
+            });
+            
+            const [policies, setPolicies] = useState({
+                birthRate: 50,
+                immigration: 50,
+                housing: 50,
+                jobs: 50,
+                education: 50,
+                healthcare: 50,
+                transport: 50,
+                industry: 50,
+                environment: 50,
+            });
+            
+            const [nationalStats, setNationalStats] = useState({
+                totalPopulation: 51700000,
+                birthRate: 0.7,
+                deathRate: 0.6,
+                netMigration: 0,
+                urbanizationRate: 0.82,
+                treasury: 50000,
+                income: 1000,
+                gdp: 2000000,
+                industrialization: 0.5,
+            });
+            
+            const [history, setHistory] = useState({
+                population: [],
+                pollution: [],
+            });
+            
+            const [pollution, setPollution] = useState(35);
+
+            const simulatePopulationDynamics = () => {
+                const normPolicies = {
+                    birthRate: policies.birthRate / 100,
+                    immigration: policies.immigration / 100,
+                    housing: policies.housing / 100,
+                    jobs: policies.jobs / 100,
+                    education: policies.education / 100,
+                    healthcare: policies.healthcare / 100,
+                    transport: policies.transport / 100,
+                    industry: policies.industry / 100,
+                    environment: policies.environment / 100,
+                };
+                
+                const baseBirthRate = 0.006;
+                const birthBonus = normPolicies.birthRate * 0.004;
+                const housingBonus = normPolicies.housing * 0.002;
+                const educationBonus = normPolicies.education * 0.001;
+                const healthcareBonus = normPolicies.healthcare * 0.001;
+                
+                const effectiveBirthRate = baseBirthRate + birthBonus + housingBonus + educationBonus + healthcareBonus;
+                
+                const baseDeathRate = 0.007;
+                const healthcareReduction = normPolicies.healthcare * 0.002;
+                const effectiveDeathRate = baseDeathRate - healthcareReduction;
+                
+                const immigrationFlow = (normPolicies.immigration - 0.5) * 100000;
+                const jobsAttraction = (normPolicies.jobs - 0.5) * 50000;
+                
+                const industrializationRate = normPolicies.industry * 0.001;
+                const newIndustrialization = Math.min(1, Math.max(0, 
+                    nationalStats.industrialization + industrializationRate - 0.0003
+                ));
+                
+                const newCities = { ...cities };
+                
+                Object.keys(newCities).forEach(cityKey => {
+                    const city = newCities[cityKey];
+                    
+                    const attractiveness = 
+                        normPolicies.jobs * 0.3 +
+                        normPolicies.housing * 0.25 +
+                        normPolicies.transport * 0.25 +
+                        normPolicies.education * 0.2;
+                    
+                    const industryBonus = (cityKey === 'ulsan' || cityKey === 'daegu') 
+                        ? newIndustrialization * 0.5 
+                        : 0;
+                    
+                    const seoulFactor = cityKey === 'seoul' ? 1.5 : 1.0;
+                    
+                    const K = city.population * 1.5;
+                    const r = (effectiveBirthRate - effectiveDeathRate) + attractiveness * 0.01 + industryBonus * 0.02;
+                    const dPdt = r * city.population * (1 - city.population / K) * seoulFactor;
+                    
+                    let migrationEffect = 0;
+                    Object.keys(newCities).forEach(otherKey => {
+                        if (otherKey !== cityKey) {
+                            const other = cities[otherKey];
+                            const popDiff = other.population - city.population;
+                            const distance = Math.sqrt((city.x - other.x) ** 2 + (city.y - other.y) ** 2);
+                            migrationEffect += (popDiff / distance) * 0.00001 * normPolicies.transport;
+                        }
+                    });
+                    
+                    city.growth = dPdt + migrationEffect;
+                    city.population = Math.max(10000, city.population + city.growth);
+                });
+                
+                setCities(newCities);
+                
+                const totalPop = Object.values(newCities).reduce((sum, city) => sum + city.population, 0);
+                
+                const industrialEmission = newIndustrialization * 2;
+                const populationEmission = totalPop / 20000000;
+                const healthcareCleanup = normPolicies.healthcare * 0.3;
+                const educationCleanup = normPolicies.education * 0.2;
+                const environmentCleanup = normPolicies.environment * 1.5;
+                const cleanupRate = healthcareCleanup + educationCleanup + environmentCleanup;
+                
+                const newPollution = Math.max(0, Math.min(100, 
+                    pollution + industrialEmission + populationEmission - cleanupRate
+                ));
+                setPollution(newPollution);
+                
+                const gdp = (totalPop / 10000) * (1 + newIndustrialization * 2) * 40;
+                const taxRate = 0.003;
+                const income = gdp * taxRate;
+                
+                const totalExpenditure = 
+                    policies.birthRate * 2 +
+                    policies.immigration * 1.5 +
+                    policies.housing * 3 +
+                    policies.jobs * 2.5 +
+                    policies.education * 2 +
+                    policies.healthcare * 2.5 +
+                    policies.transport * 3 +
+                    policies.industry * 4 +
+                    policies.environment * 3.5;
+                
+                const netIncome = income - totalExpenditure;
+                const newTreasury = Math.max(0, nationalStats.treasury + netIncome);
+                
+                setNationalStats(prev => ({
+                    ...prev,
+                    totalPopulation: totalPop,
+                    birthRate: effectiveBirthRate * 1000,
+                    deathRate: effectiveDeathRate * 1000,
+                    netMigration: immigrationFlow + jobsAttraction,
+                    urbanizationRate: 0.82 + (normPolicies.transport - 0.5) * 0.1,
+                    treasury: newTreasury,
+                    income: income,
+                    gdp: gdp,
+                    industrialization: newIndustrialization,
+                }));
+            };
+
+            useEffect(() => {
+                if (!isRunning) return;
+
+                const interval = setInterval(() => {
+                    setTime(t => t + 0.1 * speed);
+                    simulatePopulationDynamics();
+                    
+                    setHistory(h => ({
+                        population: [...h.population.slice(-199), nationalStats.totalPopulation],
+                        pollution: [...h.pollution.slice(-199), pollution],
+                    }));
+                }, 100);
+
+                return () => clearInterval(interval);
+            }, [isRunning, speed, policies, cities, nationalStats.totalPopulation]);
+
+            const renderPopulationPage = (ctx, width, height) => {
+                const gradient = ctx.createLinearGradient(0, 0, 0, height);
+                gradient.addColorStop(0, '#0a1628');
+                gradient.addColorStop(1, '#1a2842');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 28px sans-serif';
+                ctx.fillText('🇰🇷 한반도 인구 유동 시뮬레이션', 30, 50);
+                ctx.font = '14px monospace';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('dP/dt = rP(1-P/K) + 도시간 확산', 30, 75);
+                
+                const mapX = width * 0.25;
+                const mapY = 100;
+                const mapWidth = width * 0.5;
+                const mapHeight = height - 180;
+                
+                const regions = [
+                    { name: '강원', color: '#FF8C42', path: [[0.65, 0.15], [0.75, 0.2], [0.8, 0.35], [0.7, 0.4], [0.6, 0.35], [0.55, 0.25]] },
+                    { name: '경기', color: '#FFD93D', path: [[0.4, 0.3], [0.55, 0.25], [0.6, 0.35], [0.55, 0.4], [0.45, 0.42], [0.35, 0.38]] },
+                    { name: '충청', color: '#6BCF7F', path: [[0.35, 0.45], [0.45, 0.42], [0.55, 0.4], [0.6, 0.5], [0.5, 0.55], [0.3, 0.52]] },
+                    { name: '경북', color: '#A78BFA', path: [[0.6, 0.5], [0.7, 0.4], [0.8, 0.5], [0.8, 0.65], [0.7, 0.6], [0.65, 0.55]] },
+                    { name: '전라', color: '#4D96FF', path: [[0.25, 0.55], [0.3, 0.52], [0.5, 0.55], [0.5, 0.7], [0.35, 0.75], [0.2, 0.68]] },
+                    { name: '경남', color: '#FF6B9D', path: [[0.5, 0.7], [0.65, 0.55], [0.75, 0.65], [0.75, 0.8], [0.6, 0.85], [0.5, 0.8]] },
+                    { name: '제주', color: '#FF5757', path: [[0.25, 0.95], [0.35, 0.93], [0.38, 0.98], [0.28, 1.0]] },
+                ];
+                
+                regions.forEach(region => {
+                    ctx.fillStyle = region.color;
+                    ctx.strokeStyle = '#1a1a2e';
+                    ctx.lineWidth = 2;
+                    
+                    ctx.beginPath();
+                    region.path.forEach((point, i) => {
+                        const x = mapX + point[0] * mapWidth;
+                        const y = mapY + point[1] * mapHeight;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    const centerX = mapX + region.path.reduce((sum, p) => sum + p[0], 0) / region.path.length * mapWidth;
+                    const centerY = mapY + region.path.reduce((sum, p) => sum + p[1], 0) / region.path.length * mapHeight;
+                    
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.font = 'bold 16px sans-serif';
+                    ctx.fillText(region.name, centerX - 20, centerY);
+                });
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(mapX + mapWidth * 0.5, mapY);
+                ctx.lineTo(mapX + mapWidth * 0.6, mapY + mapHeight * 0.15);
+                ctx.lineTo(mapX + mapWidth * 0.75, mapY + mapHeight * 0.3);
+                ctx.quadraticCurveTo(mapX + mapWidth * 0.85, mapY + mapHeight * 0.5, mapX + mapWidth * 0.8, mapY + mapHeight * 0.7);
+                ctx.lineTo(mapX + mapWidth * 0.7, mapY + mapHeight * 0.85);
+                ctx.lineTo(mapX + mapWidth * 0.5, mapY + mapHeight * 0.82);
+                ctx.lineTo(mapX + mapWidth * 0.3, mapY + mapHeight * 0.78);
+                ctx.lineTo(mapX + mapWidth * 0.2, mapY + mapHeight * 0.68);
+                ctx.quadraticCurveTo(mapX + mapWidth * 0.15, mapY + mapHeight * 0.5, mapX + mapWidth * 0.25, mapY + mapHeight * 0.3);
+                ctx.lineTo(mapX + mapWidth * 0.4, mapY + mapHeight * 0.15);
+                ctx.closePath();
+                ctx.stroke();
+                
+                Object.entries(cities).forEach(([key, city]) => {
+                    const x = mapX + city.x * mapWidth;
+                    const y = mapY + city.y * mapHeight;
+                    const radius = Math.sqrt(city.population) / 500;
+                    
+                    const cityGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                    cityGradient.addColorStop(0, city.growth > 0 ? '#00ff88' : '#ff4444');
+                    cityGradient.addColorStop(1, city.growth > 0 ? '#00aa55' : '#aa0000');
+                    
+                    ctx.fillStyle = cityGradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 14px sans-serif';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(city.name, x - 20, y - radius - 10);
+                    ctx.shadowBlur = 0;
+                    
+                    ctx.font = '11px monospace';
+                    ctx.fillStyle = '#ccc';
+                    const popText = (city.population / 10000).toFixed(0) + '만';
+                    ctx.fillText(popText, x - 20, y - radius + 5);
+                    
+                    if (Math.abs(city.growth) > 1000) {
+                        ctx.fillStyle = city.growth > 0 ? '#00ff88' : '#ff4444';
+                        ctx.font = 'bold 16px sans-serif';
+                        ctx.fillText(city.growth > 0 ? '↑' : '↓', x + radius + 5, y + 5);
+                    }
+                    
+                    if (Math.abs(city.growth) > 5000) {
+                        for (let i = 0; i < 5; i++) {
+                            const angle = (time * 2 + i * Math.PI / 2.5) % (Math.PI * 2);
+                            const dist = radius + 15 + Math.sin(time * 3 + i) * 5;
+                            const px = x + Math.cos(angle) * dist;
+                            const py = y + Math.sin(angle) * dist;
+                            
+                            ctx.fillStyle = city.growth > 0 ? '#00ff88' : '#ff4444';
+                            ctx.beginPath();
+                            ctx.arc(px, py, 3, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                });
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(20, height - 100, 280, 80);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText('범례', 30, height - 75);
+                
+                ctx.font = '11px sans-serif';
+                ctx.fillStyle = '#00ff88';
+                ctx.fillText('● 인구 증가 도시', 30, height - 55);
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText('● 인구 감소 도시', 30, height - 35);
+                
+                ctx.fillStyle = '#aaa';
+                ctx.fillText('원 크기 = 인구 규모', 160, height - 55);
+                ctx.fillText('색상 지역 = 행정구역', 160, height - 35);
+            };
+
+            const renderPollutionPage = (ctx, width, height) => {
+                ctx.fillStyle = '#0d0d0d';
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillText('환경 오염도 & 산업화', 20, 40);
+                
+                const particleCount = Math.floor(pollution * 8);
+                for (let i = 0; i < particleCount; i++) {
+                    const x = (Math.sin(time * 0.5 + i) * width / 2 + width / 2) % width;
+                    const y = (time * 20 + i * 25) % height;
+                    const size = 2 + Math.random() * 3;
+                    
+                    const pollutionLevel = pollution / 100;
+                    const r = Math.min(255, 100 + pollutionLevel * 155);
+                    const g = Math.max(0, 100 - pollutionLevel * 100);
+                    
+                    ctx.fillStyle = `rgba(${r}, ${g}, 50, 0.6)`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                const factoryCount = Math.floor(nationalStats.industrialization * 12);
+                const mapCenterX = width / 2;
+                const mapCenterY = height / 2;
+                
+                for (let i = 0; i < factoryCount; i++) {
+                    const angle = (i / factoryCount) * Math.PI * 2;
+                    const dist = 250 + Math.sin(i * 1.5) * 50;
+                    const fx = mapCenterX + Math.cos(angle) * dist;
+                    const fy = mapCenterY + Math.sin(angle) * dist;
+                    
+                    ctx.fillStyle = '#555';
+                    ctx.fillRect(fx - 15, fy - 20, 30, 40);
+                    ctx.fillRect(fx + 5, fy - 35, 8, 15);
+                    
+                    if (pollution > 30) {
+                        for (let s = 0; s < 3; s++) {
+                            const smokeY = fy - 35 - s * 15 - (time * 10) % 20;
+                            const smokeSize = 5 + s * 3;
+                            ctx.fillStyle = `rgba(150, 150, 150, ${0.4 - s * 0.1})`;
+                            ctx.beginPath();
+                            ctx.arc(fx + 9, smokeY, smokeSize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    ctx.fillStyle = '#ffaa00';
+                    for (let w = 0; w < 2; w++) {
+                        for (let h = 0; h < 3; h++) {
+                            ctx.fillRect(fx - 10 + w * 12, fy - 15 + h * 12, 6, 6);
+                        }
+                    }
+                }
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(30, height - 150, 300, 120);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px sans-serif';
+                ctx.fillText('산업화 수준', 40, height - 125);
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(40, height - 105, 260, 30);
+                
+                const industrialWidth = 260 * nationalStats.industrialization;
+                const industrialGradient = ctx.createLinearGradient(40, 0, 40 + industrialWidth, 0);
+                industrialGradient.addColorStop(0, '#ff6600');
+                industrialGradient.addColorStop(1, '#ff0000');
+                ctx.fillStyle = industrialGradient;
+                ctx.fillRect(40, height - 105, industrialWidth, 30);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px monospace';
+                ctx.fillText(`${(nationalStats.industrialization * 100).toFixed(0)}%`, 145, height - 82);
+                
+                ctx.font = '12px sans-serif';
+                ctx.fillStyle = '#aaa';
+                ctx.fillText(`공장 ${factoryCount}개 | GDP ₩${(nationalStats.gdp / 1000).toFixed(0)}조`, 40, height - 55);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(width - 220, 20, 200, 180);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText('대기질 지수', width - 210, 45);
+                
+                ctx.font = '42px monospace';
+                const aqiColor = pollution > 80 ? '#ff0000' : pollution > 50 ? '#ffaa00' : '#00ff00';
+                ctx.fillStyle = aqiColor;
+                ctx.fillText(Math.floor(pollution), width - 210, 95);
+                
+                ctx.font = '14px sans-serif';
+                ctx.fillStyle = '#aaa';
+                const status = pollution > 80 ? '매우나쁨' : pollution > 50 ? '나쁨' : '보통';
+                ctx.fillText(`상태: ${status}`, width - 210, 120);
+                
+                const industrialShare = (nationalStats.industrialization * 70).toFixed(0);
+                const populationShare = (30 - nationalStats.industrialization * 10).toFixed(0);
+                ctx.fillStyle = '#ff6600';
+                ctx.fillText(`산업: ${industrialShare}%`, width - 210, 145);
+                ctx.fillStyle = '#4444ff';
+                ctx.fillText(`인구: ${populationShare}%`, width - 210, 160);
+                
+                if (policies.environment > 50) {
+                    ctx.fillStyle = 'rgba(0, 200, 100, 0.8)';
+                    ctx.fillRect(width - 220, 175, 200, 60);
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText('🌱 환경 정책 활성화', width - 210, 195);
+                    
+                    ctx.font = '11px sans-serif';
+                    ctx.fillStyle = '#e0ffe0';
+                    const cleanupEffect = ((policies.environment / 100) * 1.5).toFixed(1);
+                    ctx.fillText(`저감 효과: -${cleanupEffect}/틱`, width - 210, 215);
+                    ctx.fillText(`투자: ${policies.environment}%`, width - 210, 230);
+                }
+            };
+
+            const renderGraphsPage = (ctx, width, height) => {
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillText('통계 그래프', 20, 40);
+                
+                const graphs = [
+                    { key: 'population', label: '총 인구', color: '#4444ff', max: 60000000, current: nationalStats.totalPopulation },
+                    { key: 'pollution', label: '오염도', color: '#ff4444', max: 100, current: pollution }
+                ];
+                
+                graphs.forEach((graph, index) => {
+                    const startY = 100 + index * 280;
+                    const graphHeight = 200;
+                    const graphWidth = width - 350;
+                    
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(50, startY, graphWidth, graphHeight);
+                    
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]);
+                    for (let i = 0; i <= 4; i++) {
+                        const y = startY + (graphHeight / 4) * i;
+                        ctx.beginPath();
+                        ctx.moveTo(50, y);
+                        ctx.lineTo(50 + graphWidth, y);
+                        ctx.stroke();
+                    }
+                    ctx.setLineDash([]);
+                    
+                    const data = history[graph.key] || [];
+                    if (data.length > 1) {
+                        ctx.strokeStyle = graph.color;
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        
+                        data.forEach((value, i) => {
+                            const x = 50 + (i / 200) * graphWidth;
+                            const normalized = value / graph.max;
+                            const y = startY + graphHeight - (normalized * graphHeight);
+                            
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        });
+                        
+                        ctx.stroke();
+                    }
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.fillText(graph.label, 55, startY - 10);
+                    
+                    ctx.font = 'bold 32px monospace';
+                    ctx.fillStyle = graph.color;
+                    ctx.fillText(
+                        graph.key === 'population' 
+                            ? (graph.current / 10000).toFixed(0) + '만'
+                            : graph.current.toFixed(0),
+                        width - 280,
+                        startY + graphHeight / 2 + 10
+                    );
+                });
+            };
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                switch(currentPage) {
+                    case 'population':
+                        renderPopulationPage(ctx, width, height);
+                        break;
+                    case 'pollution':
+                        renderPollutionPage(ctx, width, height);
+                        break;
+                    case 'graphs':
+                        renderGraphsPage(ctx, width, height);
+                        break;
+                }
+            }, [time, cities, pollution, currentPage, history, nationalStats, policies]);
+
+            const reset = () => {
+                setTime(0);
+                setIsRunning(false);
+                setCities({
+                    seoul: { name: '서울', population: 9500000, x: 0.5, y: 0.35, growth: 0 },
+                    busan: { name: '부산', population: 3300000, x: 0.72, y: 0.75, growth: 0 },
+                    incheon: { name: '인천', population: 2950000, x: 0.42, y: 0.38, growth: 0 },
+                    daegu: { name: '대구', population: 2400000, x: 0.68, y: 0.62, growth: 0 },
+                    daejeon: { name: '대전', population: 1450000, x: 0.5, y: 0.55, growth: 0 },
+                    gwangju: { name: '광주', population: 1440000, x: 0.38, y: 0.72, growth: 0 },
+                    ulsan: { name: '울산', population: 1120000, x: 0.78, y: 0.68, growth: 0 },
+                    suwon: { name: '수원', population: 1180000, x: 0.48, y: 0.40, growth: 0 },
+                    sejong: { name: '세종', population: 370000, x: 0.48, y: 0.52, growth: 0 },
+                });
+                setPolicies({
+                    birthRate: 50,
+                    immigration: 50,
+                    housing: 50,
+                    jobs: 50,
+                    education: 50,
+                    healthcare: 50,
+                    transport: 50,
+                    industry: 50,
+                    environment: 50,
+                });
+                setNationalStats({
+                    totalPopulation: 51700000,
+                    birthRate: 0.7,
+                    deathRate: 0.6,
+                    netMigration: 0,
+                    urbanizationRate: 0.82,
+                    treasury: 50000,
+                    income: 1000,
+                    gdp: 2000000,
+                    industrialization: 0.5,
+                });
+                setPollution(35);
+                setHistory({ population: [], pollution: [] });
+            };
+
+            const pages = [
+                { id: 'population', label: '인구 유동', icon: 'users' },
+                { id: 'pollution', label: '환경', icon: 'wind' },
+                { id: 'graphs', label: '통계', icon: 'chart' }
+            ];
+
+            return (
+                <div className="w-full h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white flex flex-col">
+                    <div className="bg-gray-900 border-b border-gray-800 p-4">
+                        <div className="max-w-7xl mx-auto flex justify-between items-center">
+                            <div>
+                                <h1 className="text-3xl font-bold mb-1 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                                    🇰🇷 한반도 인구 디지털 트윈
+                                </h1>
+                                <p className="text-gray-400 text-sm">인구 유동 시뮬레이션 | 정책 시뮬레이터</p>
+                            </div>
+                            
+                            <div className="flex gap-6 text-sm">
+                                <div>
+                                    <div className="text-gray-400">총 인구</div>
+                                    <div className="text-xl font-bold text-blue-400">
+                                        {(nationalStats.totalPopulation / 10000).toFixed(0)}만
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-gray-400">국고</div>
+                                    <div className={`text-xl font-bold ${nationalStats.treasury > 10000 ? 'text-green-400' : 'text-red-400'}`}>
+                                        ₩{nationalStats.treasury.toFixed(0)}억
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-gray-400">세수/틱</div>
+                                    <div className="text-lg font-mono text-cyan-400">
+                                        +{nationalStats.income.toFixed(0)}억
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-gray-400">GDP</div>
+                                    <div className="text-lg font-mono text-purple-400">
+                                        ₩{(nationalStats.gdp / 1000).toFixed(0)}조
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-900 border-b border-gray-800">
+                        <div className="max-w-7xl mx-auto flex gap-1 p-2">
+                            {pages.map(page => (
+                                <button
+                                    key={page.id}
+                                    onClick={() => setCurrentPage(page.id)}
+                                    className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-all ${
+                                        currentPage === page.id 
+                                            ? 'bg-blue-600 text-white shadow-lg' 
+                                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                                    }`}
+                                >
+                                    <Icon type={page.icon} className="w-5 h-5" />
+                                    <span className="font-semibold">{page.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex overflow-hidden">
+                        <div className="flex-1 p-4">
+                            <div className="h-full bg-black rounded-lg overflow-hidden shadow-2xl">
+                                <canvas 
+                                    ref={canvasRef} 
+                                    width={1000} 
+                                    height={700}
+                                    className="w-full h-full"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="w-96 p-4 space-y-3 overflow-y-auto">
+                            <div className="bg-gray-800 rounded-lg p-4">
+                                <div className="text-xl font-mono text-cyan-400">
+                                    {`${Math.floor(time / 365)}년 ${Math.floor((time % 365) / 30)}개월`}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">시뮬레이션 시간</div>
+                            </div>
+
+                            <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setIsRunning(!isRunning)}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 rounded py-2 flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <Icon type={isRunning ? 'pause' : 'play'} className="w-4 h-4" />
+                                        {isRunning ? '정지' : '시작'}
+                                    </button>
+                                    <button
+                                        onClick={reset}
+                                        className="bg-red-600 hover:bg-red-700 rounded px-4 flex items-center justify-center transition-colors"
+                                    >
+                                        <Icon type="reset" className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-gray-400 block mb-1">
+                                        속도: {speed}x
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0.5"
+                                        max="3"
+                                        step="0.5"
+                                        value={speed}
+                                        onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-purple-900 to-blue-900 rounded-lg p-4">
+                                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                                    <Icon type="building" className="w-5 h-5" />
+                                    정책 조정
+                                </h3>
+                                
+                                <div className="space-y-3">
+                                    {Object.entries({
+                                        birthRate: { label: '출산 장려', icon: 'heart', color: 'pink', cost: 2 },
+                                        immigration: { label: '이민 정책', icon: 'users', color: 'blue', cost: 1.5 },
+                                        housing: { label: '주택 공급', icon: 'home', color: 'yellow', cost: 3 },
+                                        jobs: { label: '일자리 창출', icon: 'briefcase', color: 'green', cost: 2.5 },
+                                        education: { label: '교육 투자', icon: 'graduation', color: 'purple', cost: 2 },
+                                        healthcare: { label: '의료 복지', icon: 'heart', color: 'red', cost: 2.5 },
+                                        transport: { label: '교통 인프라', icon: 'trending', color: 'orange', cost: 3 },
+                                    }).map(([key, config]) => (
+                                        <div key={key}>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="text-sm flex items-center gap-2">
+                                                    <Icon type={config.icon} className={`w-4 h-4 text-${config.color}-400`} />
+                                                    {config.label}
+                                                </label>
+                                                <span className="text-xs text-cyan-400 font-mono">
+                                                    {policies[key]}%
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="100"
+                                                step="5"
+                                                value={policies[key]}
+                                                onChange={(e) => setPolicies({...policies, [key]: parseFloat(e.target.value)})}
+                                                className="w-full"
+                                            />
+                                            <div className="text-xs text-red-400 mt-1">
+                                                비용: {(policies[key] * config.cost).toFixed(0)}억/틱
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <div className="border-t border-yellow-600 pt-3 mt-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="text-sm flex items-center gap-2">
+                                                <Icon type="building" className="w-4 h-4 text-yellow-400" />
+                                                산업화 투자
+                                            </label>
+                                            <span className="text-xs text-cyan-400 font-mono">
+                                                {policies.industry}%
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="5"
+                                            value={policies.industry}
+                                            onChange={(e) => setPolicies({...policies, industry: parseFloat(e.target.value)})}
+                                            className="w-full"
+                                        />
+                                        <div className="text-xs text-red-400 mt-1">
+                                            비용: {(policies.industry * 4).toFixed(0)}억/틱 ⚠️ 오염↑
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-green-600 pt-3 mt-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="text-sm flex items-center gap-2">
+                                                <Icon type="wind" className="w-4 h-4 text-green-400" />
+                                                환경 보호
+                                            </label>
+                                            <span className="text-xs text-cyan-400 font-mono">
+                                                {policies.environment}%
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="5"
+                                            value={policies.environment}
+                                            onChange={(e) => setPolicies({...policies, environment: parseFloat(e.target.value)})}
+                                            className="w-full"
+                                        />
+                                        <div className="text-xs text-green-400 mt-1">
+                                            비용: {(policies.environment * 3.5).toFixed(0)}억/틱 🌱 오염↓↓
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-800 rounded-lg p-4">
+                                <h3 className="text-sm font-bold mb-2 text-gray-300">국가 통계</h3>
+                                <div className="text-xs space-y-1">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">출생률</span>
+                                        <span className="text-green-400 font-mono">{nationalStats.birthRate.toFixed(2)}‰</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">사망률</span>
+                                        <span className="text-red-400 font-mono">{nationalStats.deathRate.toFixed(2)}‰</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">순 이동</span>
+                                        <span className="text-blue-400 font-mono">
+                                            {nationalStats.netMigration > 0 ? '+' : ''}{nationalStats.netMigration.toFixed(0)}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">도시화율</span>
+                                        <span className="text-purple-400 font-mono">{(nationalStats.urbanizationRate * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-700 pt-1 mt-1">
+                                        <span className="text-gray-400">산업화</span>
+                                        <span className="text-yellow-400 font-mono">{(nationalStats.industrialization * 100).toFixed(0)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-4 border border-gray-700">
+                                <h3 className="text-sm font-bold mb-2 text-yellow-400">💰 재정 상황</h3>
+                                <div className="text-xs space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">세수 (틱당)</span>
+                                        <span className="text-green-400 font-mono">+{nationalStats.income.toFixed(0)}억</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">총 지출 (틱당)</span>
+                                        <span className="text-red-400 font-mono">
+                                            -{(
+                                                policies.birthRate * 2 +
+                                                policies.immigration * 1.5 +
+                                                policies.housing * 3 +
+                                                policies.jobs * 2.5 +
+                                                policies.education * 2 +
+                                                policies.healthcare * 2.5 +
+                                                policies.transport * 3 +
+                                                policies.industry * 4 +
+                                                policies.environment * 3.5
+                                            ).toFixed(0)}억
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between border-t border-gray-700 pt-1">
+                                        <span className="text-gray-300 font-semibold">순 수입</span>
+                                        <span className={`font-mono font-bold ${
+                                            nationalStats.income - (
+                                                policies.birthRate * 2 +
+                                                policies.immigration * 1.5 +
+                                                policies.housing * 3 +
+                                                policies.jobs * 2.5 +
+                                                policies.education * 2 +
+                                                policies.healthcare * 2.5 +
+                                                policies.transport * 3 +
+                                                policies.industry * 4 +
+                                                policies.environment * 3.5
+                                            ) > 0 ? 'text-green-400' : 'text-red-400'
+                                        }`}>
+                                            {(nationalStats.income - (
+                                                policies.birthRate * 2 +
+                                                policies.immigration * 1.5 +
+                                                policies.housing * 3 +
+                                                policies.jobs * 2.5 +
+                                                policies.education * 2 +
+                                                policies.healthcare * 2.5 +
+                                                policies.transport * 3 +
+                                                policies.industry * 4 +
+                                                policies.environment * 3.5
+                                            )).toFixed(0)}억
+                                        </span>
+                                    </div>
+                                    {nationalStats.treasury < 5000 && (
+                                        <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded p-2 mt-2">
+                                            <div className="text-red-400 text-xs font-bold">⚠️ 재정 위기</div>
+                                            <div className="text-red-300 text-xs">예산을 줄이세요!</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<KoreaPopulationTwin />, document.getElementById('root'));
+    </script>
+</body>
+</html>
