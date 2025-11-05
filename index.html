@@ -258,125 +258,23 @@
                 const mapWidth = width * 0.6;
                 const mapHeight = height - 200;
                 
-                // 더 사실적인 한반도 지역 구분
-                const regions = [
-                    // 강원도 (주황)
-                    { 
-                        name: '강원도', 
-                        color: '#fb923c',
-                        path: [
-                            [0.58, 0.08], [0.72, 0.15], [0.80, 0.28], 
-                            [0.78, 0.42], [0.68, 0.45], [0.58, 0.38], 
-                            [0.52, 0.25], [0.54, 0.12]
-                        ]
-                    },
-                    // 경기도 (노랑)
-                    { 
-                        name: '경기도', 
-                        color: '#fbbf24',
-                        path: [
-                            [0.38, 0.25], [0.52, 0.25], [0.58, 0.38], 
-                            [0.52, 0.45], [0.42, 0.48], [0.32, 0.42], 
-                            [0.28, 0.32]
-                        ]
-                    },
-                    // 충청도 (초록)
-                    { 
-                        name: '충청도', 
-                        color: '#4ade80',
-                        path: [
-                            [0.28, 0.48], [0.42, 0.48], [0.52, 0.45], 
-                            [0.58, 0.52], [0.52, 0.60], [0.35, 0.62], 
-                            [0.22, 0.58]
-                        ]
-                    },
-                    // 경상북도 (보라)
-                    { 
-                        name: '경상북도', 
-                        color: '#a78bfa',
-                        path: [
-                            [0.58, 0.52], [0.68, 0.45], [0.82, 0.48], 
-                            [0.85, 0.62], [0.78, 0.68], [0.68, 0.65], 
-                            [0.60, 0.58]
-                        ]
-                    },
-                    // 전라도 (파랑)
-                    { 
-                        name: '전라도', 
-                        color: '#60a5fa',
-                        path: [
-                            [0.18, 0.62], [0.22, 0.58], [0.35, 0.62], 
-                            [0.42, 0.72], [0.35, 0.82], [0.22, 0.80], 
-                            [0.12, 0.72]
-                        ]
-                    },
-                    // 경상남도 (핑크)
-                    { 
-                        name: '경상남도', 
-                        color: '#f472b6',
-                        path: [
-                            [0.42, 0.72], [0.60, 0.58], [0.68, 0.65], 
-                            [0.72, 0.75], [0.68, 0.85], [0.52, 0.88], 
-                            [0.42, 0.82]
-                        ]
-                    },
-                    // 제주도 (빨강)
-                    { 
-                        name: '제주도', 
-                        color: '#ef4444',
-                        path: [
-                            [0.20, 0.95], [0.32, 0.94], [0.35, 0.98], [0.22, 0.99]
-                        ]
-                    },
-                ];
+                // 한반도 전체를 하나의 도형으로
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 20;
+                ctx.shadowOffsetX = 5;
+                ctx.shadowOffsetY = 5;
                 
-                // 지역 렌더링 (그림자 효과)
-                regions.forEach(region => {
-                    ctx.save();
-                    
-                    // 그림자
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-                    ctx.shadowBlur = 10;
-                    ctx.shadowOffsetX = 3;
-                    ctx.shadowOffsetY = 3;
-                    
-                    // 지역 색상 (약간 투명하게)
-                    ctx.fillStyle = region.color + 'dd';
-                    ctx.strokeStyle = '#0f172a';
-                    ctx.lineWidth = 3;
-                    
-                    ctx.beginPath();
-                    region.path.forEach((point, i) => {
-                        const x = mapX + point[0] * mapWidth;
-                        const y = mapY + point[1] * mapHeight;
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    });
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    ctx.restore();
-                    
-                    // 지역명 (더 선명하게)
-                    const centerX = mapX + region.path.reduce((sum, p) => sum + p[0], 0) / region.path.length * mapWidth;
-                    const centerY = mapY + region.path.reduce((sum, p) => sum + p[1], 0) / region.path.length * mapHeight;
-                    
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                    ctx.shadowBlur = 5;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = 'bold 18px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(region.name, centerX, centerY);
-                    ctx.restore();
-                });
+                // 한반도 전체 그라디언트
+                const koreaGradient = ctx.createRadialGradient(
+                    mapX + mapWidth * 0.5, mapY + mapHeight * 0.4, 0,
+                    mapX + mapWidth * 0.5, mapY + mapHeight * 0.4, mapWidth * 0.6
+                );
+                koreaGradient.addColorStop(0, '#3b82f6');
+                koreaGradient.addColorStop(0.5, '#2563eb');
+                koreaGradient.addColorStop(1, '#1e40af');
                 
-                // 한반도 외곽선 (더 부드럽게)
-                ctx.strokeStyle = '#e2e8f0';
-                ctx.lineWidth = 4;
-                ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
-                ctx.shadowBlur = 8;
+                ctx.fillStyle = koreaGradient;
                 
                 ctx.beginPath();
                 // 북쪽 시작
@@ -415,10 +313,55 @@
                 // 서북쪽
                 ctx.lineTo(mapX + mapWidth * 0.45, mapY + mapHeight * 0.12);
                 ctx.closePath();
-                ctx.stroke();
+                ctx.fill();
                 
-                ctx.shadowColor = 'transparent';
-                ctx.shadowBlur = 0;
+                ctx.restore();
+                
+                // 지역 이름만 표시 (색상 없이)
+                const regions = [
+                    { name: '강원도', x: 0.68, y: 0.28 },
+                    { name: '경기도', x: 0.42, y: 0.35 },
+                    { name: '충청도', x: 0.40, y: 0.52 },
+                    { name: '경상북도', x: 0.70, y: 0.55 },
+                    { name: '전라도', x: 0.28, y: 0.68 },
+                    { name: '경상남도', x: 0.58, y: 0.75 },
+                    { name: '제주도', x: 0.27, y: 0.96 },
+                ];
+                
+                // 제주도 별도 렌더링
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.shadowBlur = 15;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                
+                const jejuGradient = ctx.createRadialGradient(
+                    mapX + mapWidth * 0.27, mapY + mapHeight * 0.96, 0,
+                    mapX + mapWidth * 0.27, mapY + mapHeight * 0.96, 40
+                );
+                jejuGradient.addColorStop(0, '#3b82f6');
+                jejuGradient.addColorStop(1, '#1e40af');
+                
+                ctx.fillStyle = jejuGradient;
+                ctx.beginPath();
+                ctx.ellipse(mapX + mapWidth * 0.27, mapY + mapHeight * 0.96, 45, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                
+                // 지역명 표시
+                regions.forEach(region => {
+                    const x = mapX + region.x * mapWidth;
+                    const y = mapY + region.y * mapHeight;
+                    
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(region.name, x, y);
+                    ctx.restore();
+                });
                 
                 // 도시 마커 렌더링
                 Object.entries(cities).forEach(([key, city]) => {
